@@ -23,6 +23,7 @@ export default function DisplayPage() {
   const followMode = searchParams.get('follow') === '1';
 
   const [activeRoom, setActiveRoom] = useState(followMode ? null : fixedRoomId);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [state, setState] = useState({
     speakers: [],
     currentSpeaker: null,
@@ -30,6 +31,13 @@ export default function DisplayPage() {
     isRunning: false,
     displayConfig: defaultConfig
   });
+
+  // Track fullscreen changes
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
 
   // Follow mode: track which room the admin is on
   useEffect(() => {
@@ -79,9 +87,11 @@ export default function DisplayPage() {
     <main className={`flex min-h-screen w-full flex-col items-center justify-center gap-6 overflow-hidden p-4 text-center transition-colors duration-500 ${
       timeUp ? 'animate-pulse bg-red-950' : 'bg-black'
     }`}>
-      <p className="rounded-full border border-slate-700 px-4 py-1 text-sm text-slate-400">
-        {followMode ? `📡 Libre · ${activeRoom || '...'}` : `Sala: ${activeRoom}`}
-      </p>
+      {!isFullscreen && (
+        <p className="rounded-full border border-slate-700 px-4 py-1 text-sm text-slate-400">
+          {followMode ? `📡 Libre · ${activeRoom || '...'}` : `Sala: ${activeRoom}`}
+        </p>
+      )}
 
       {cfg.namePosition === 'top' ? <>{nameEl}{timerEl}</> : <>{timerEl}{nameEl}</>}
 
@@ -91,12 +101,14 @@ export default function DisplayPage() {
         </div>
       )}
 
-      <button
-        className="mt-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400"
-        onClick={() => document.documentElement.requestFullscreen?.()}
-      >
-        Pantalla completa
-      </button>
+      {!isFullscreen && (
+        <button
+          className="mt-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400"
+          onClick={() => document.documentElement.requestFullscreen?.()}
+        >
+          Pantalla completa
+        </button>
+      )}
     </main>
   );
 }
