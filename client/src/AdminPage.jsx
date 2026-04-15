@@ -156,21 +156,32 @@ export default function AdminPage() {
           <h1 className="text-3xl font-black tracking-wide">CronosFlow Admin</h1>
           <p className="text-slate-300">Sesión: <strong>{roomId}</strong></p>
         </div>
-        <button
-          className="rounded-xl bg-cyan-500 px-5 py-3 font-bold text-black"
-          onClick={() => window.open(followMode ? '/display?follow=1' : `/display?room=${roomId}`, '_blank')}
-        >
-          📺 Abrir Display
-        </button>
-        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 px-4 py-3 text-sm select-none">
-          <input
-            type="checkbox"
-            className="h-4 w-4 accent-cyan-500"
-            checked={followMode}
-            onChange={(e) => setFollowMode(e.target.checked)}
-          />
-          <span className="text-slate-300">📡 Modo libre</span>
-        </label>
+        <div className="flex flex-col items-end gap-2">
+          <button
+            className="rounded-xl bg-cyan-500 px-5 py-3 font-bold text-black hover:bg-cyan-400 transition-colors"
+            onClick={() => window.open(followMode ? '/display?follow=1' : `/display?room=${roomId}`, '_blank')}
+          >
+            📺 Abrir Display
+          </button>
+          <div className="flex items-center rounded-xl bg-slate-800 p-1 text-sm">
+            <button
+              onClick={() => setFollowMode(false)}
+              className={`rounded-lg px-3 py-1.5 font-semibold transition-colors ${
+                !followMode ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              📌 Por sesión
+            </button>
+            <button
+              onClick={() => setFollowMode(true)}
+              className={`rounded-lg px-3 py-1.5 font-semibold transition-colors ${
+                followMode ? 'bg-cyan-500 text-black' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              📡 Modo libre
+            </button>
+          </div>
+        </div>
       </header>
 
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
