@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TimerText } from './components/TimerText';
 import { useRoomId } from './hooks/useRoomId';
 import { socket } from './socket';
@@ -17,7 +18,11 @@ const timerSizeClass = {
 };
 
 export default function DisplayPage() {
-  const roomId = useRoomId();
+  const fixedRoomId = useRoomId();
+  const [searchParams] = useSearchParams();
+  const followMode = searchParams.get('follow') === '1';
+
+  const [activeRoom, setActiveRoom] = useState(followMode ? null : fixedRoomId);
   const [state, setState] = useState({
     speakers: [],
     currentSpeaker: null,
@@ -26,12 +31,23 @@ export default function DisplayPage() {
     displayConfig: defaultConfig
   });
 
+  // Follow mode: track which room the admin is on
   useEffect(() => {
-    socket.emit('join_room', { roomId });
+    if (!followMode) return;
+    socket.emit('get_global_active_room');
+    const onGlobalChanged = ({ roomId }) => setActiveRoom(roomId);
+    socket.on('global_room_changed', onGlobalChanged);
+    return () => socket.off('global_room_changed', onGlobalChanged);
+  }, [followMode]);
+
+  // Join the active room and sync state
+  useEffect(() => {
+    if (!activeRoom) return;
+    socket.emit('join_room', { roomId: activeRoom });
     const onSync = (nextState) => setState(nextState);
     socket.on('sync_state', onSync);
     return () => socket.off('sync_state', onSync);
-  }, [roomId]);
+  }, [activeRoom]);
 
   const cfg = state.displayConfig ?? defaultConfig;
   const currentSpeakerDuration = state.currentSpeaker?.durationSeconds || 0;
@@ -64,7 +80,7 @@ export default function DisplayPage() {
       timeUp ? 'animate-pulse bg-red-950' : 'bg-black'
     }`}>
       <p className="rounded-full border border-slate-700 px-4 py-1 text-sm text-slate-400">
-        Sala: {roomId}
+        {followMode ? `📡 Libre · ${activeRoom || '...'}` : `Sala: ${activeRoom}`}
       </p>
 
       {cfg.namePosition === 'top' ? <>{nameEl}{timerEl}</> : <>{timerEl}{nameEl}</>}

@@ -31,11 +31,13 @@ export default function AdminPage() {
   const [rooms, setRooms] = useState([]);
   const [newRoomName, setNewRoomName] = useState('');
   const [editingRoom, setEditingRoom] = useState(null); // { id, value }
+  const [followMode, setFollowMode] = useState(false);
   const dragSrcIdx = useRef(null);
 
   useEffect(() => {
     socket.emit('join_room', { roomId });
     socket.emit('get_rooms');
+    socket.emit('set_global_active_room', { roomId });
     const onSync = (nextState) => setState(nextState);
     const onRoomsList = (list) => setRooms(list);
     const onRoomDeleted = ({ roomId: deletedId }) => {
@@ -156,10 +158,19 @@ export default function AdminPage() {
         </div>
         <button
           className="rounded-xl bg-cyan-500 px-5 py-3 font-bold text-black"
-          onClick={() => window.open(`/display?room=${roomId}`, '_blank')}
+          onClick={() => window.open(followMode ? '/display?follow=1' : `/display?room=${roomId}`, '_blank')}
         >
           📺 Abrir Display
         </button>
+        <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-700 px-4 py-3 text-sm select-none">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-cyan-500"
+            checked={followMode}
+            onChange={(e) => setFollowMode(e.target.checked)}
+          />
+          <span className="text-slate-300">📡 Modo libre</span>
+        </label>
       </header>
 
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">

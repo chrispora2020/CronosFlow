@@ -170,6 +170,8 @@ function broadcastRoomsList() {
   io.emit('rooms_list', getRoomsList());
 }
 
+let globalActiveRoom = null;
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true, timestamp: Date.now() });
 });
@@ -184,6 +186,15 @@ io.on('connection', (socket) => {
 
   socket.on('get_rooms', () => {
     socket.emit('rooms_list', getRoomsList());
+  });
+
+  socket.on('set_global_active_room', ({ roomId = 'default' } = {}) => {
+    globalActiveRoom = roomId;
+    io.emit('global_room_changed', { roomId });
+  });
+
+  socket.on('get_global_active_room', () => {
+    socket.emit('global_room_changed', { roomId: globalActiveRoom });
   });
 
   socket.on('set_speakers', ({ roomId = 'default', speakers = [] } = {}) => {
