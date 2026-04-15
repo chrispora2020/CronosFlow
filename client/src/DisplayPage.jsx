@@ -24,6 +24,7 @@ export default function DisplayPage() {
 
   const [activeRoom, setActiveRoom] = useState(followMode ? null : fixedRoomId);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [wakeLockEnabled, setWakeLockEnabled] = useState(false);
   const [state, setState] = useState({
     speakers: [],
     currentSpeaker: null,
@@ -37,6 +38,42 @@ export default function DisplayPage() {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  // Keep screen awake on mobile/tablet when supported
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return;
+
+    let wakeLockSentinel = null;
+
+    const requestWakeLock = async () => {
+      try {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        setWakeLockEnabled(true);
+
+        wakeLockSentinel.addEventListener('release', () => {
+          setWakeLockEnabled(false);
+        });
+      } catch {
+        setWakeLockEnabled(false);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !wakeLockSentinel) {
+        requestWakeLock();
+      }
+    };
+
+    requestWakeLock();
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      wakeLockSentinel?.release();
+      wakeLockSentinel = null;
+      setWakeLockEnabled(false);
+    };
   }, []);
 
   // Follow mode: track which room the admin is on
@@ -92,6 +129,11 @@ export default function DisplayPage() {
           {followMode ? `📡 Libre · ${activeRoom || '...'}` : `Sala: ${activeRoom}`}
         </p>
       )}
+      {!isFullscreen && wakeLockEnabled && (
+        <p className="rounded-full border border-emerald-700 px-4 py-1 text-sm text-emerald-300">
+          🔋 Pantalla activa (anti-bloqueo)
+        </p>
+      )}
 
       {cfg.namePosition === 'top' ? <>{nameEl}{timerEl}</> : <>{timerEl}{nameEl}</>}
 
@@ -112,4 +154,3 @@ export default function DisplayPage() {
     </main>
   );
 }
-
