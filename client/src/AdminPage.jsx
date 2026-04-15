@@ -13,7 +13,13 @@ const defaultState = {
   progress: 0,
   totalDuration: 0,
   currentSpeaker: null,
-  autoAdvance: true
+  autoAdvance: true,
+  displayConfig: {
+    showName: true,
+    showTimer: true,
+    namePosition: 'top',
+    timerSize: 'lg'
+  }
 };
 
 export default function AdminPage() {
@@ -50,6 +56,17 @@ export default function AdminPage() {
   const switchRoom = (id) => {
     navigate(`/admin?room=${encodeURIComponent(id)}`);
   };
+
+  const cfg = state.displayConfig ?? defaultState.displayConfig;
+
+  const updateDisplayConfig = (patch) => {
+    socket.emit('set_display_config', { roomId, config: patch });
+  };
+
+  const cfgBtn = (active) =>
+    `rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+      active ? 'bg-cyan-500 text-black' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+    }`;
 
   const reorderSpeakers = (fromIdx, toIdx) => {
     if (fromIdx === toIdx) return;
@@ -216,6 +233,40 @@ export default function AdminPage() {
             </div>
           ))}
           {!sortedSpeakers.length && <p className="text-slate-400">Sin discursantes todavía.</p>}
+        </div>
+      </section>
+
+      <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <h2 className="mb-4 text-xl font-bold">Configuración del Display</h2>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <p className="mb-2 text-sm text-slate-400">Mostrar en pantalla</p>
+            <div className="flex gap-2">
+              <button className={cfgBtn(cfg.showName)} onClick={() => updateDisplayConfig({ showName: !cfg.showName })}>
+                {cfg.showName ? '✓' : '✗'} Nombre
+              </button>
+              <button className={cfgBtn(cfg.showTimer)} onClick={() => updateDisplayConfig({ showTimer: !cfg.showTimer })}>
+                {cfg.showTimer ? '✓' : '✗'} Tiempo
+              </button>
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm text-slate-400">Posición del nombre</p>
+            <div className="flex gap-2">
+              <button className={cfgBtn(cfg.namePosition === 'top')} onClick={() => updateDisplayConfig({ namePosition: 'top' })}>↑ Arriba</button>
+              <button className={cfgBtn(cfg.namePosition === 'bottom')} onClick={() => updateDisplayConfig({ namePosition: 'bottom' })}>↓ Abajo</button>
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm text-slate-400">Tamaño del timer</p>
+            <div className="flex gap-2">
+              {['sm', 'md', 'lg'].map((size) => (
+                <button key={size} className={cfgBtn(cfg.timerSize === size)} onClick={() => updateDisplayConfig({ timerSize: size })}>
+                  {size.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

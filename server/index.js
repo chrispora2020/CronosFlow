@@ -32,6 +32,12 @@ function getInitialState() {
     timeRemaining: 0,
     isRunning: false,
     autoAdvance: true,
+    displayConfig: {
+      showName: true,
+      showTimer: true,
+      namePosition: 'top',
+      timerSize: 'lg'
+    },
     updatedAt: Date.now(),
     version: 1
   };
@@ -233,6 +239,13 @@ io.on('connection', (socket) => {
     const room = ensureRoom(roomId);
     stopTimer(roomId);
     room.state.timeRemaining = 0;
+    room.state.updatedAt = Date.now();
+    emitState(roomId);
+  });
+
+  socket.on('set_display_config', ({ roomId = 'default', config = {} } = {}) => {
+    const room = ensureRoom(roomId);
+    room.state.displayConfig = { ...room.state.displayConfig, ...config };
     room.state.updatedAt = Date.now();
     emitState(roomId);
   });
