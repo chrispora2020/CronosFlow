@@ -257,6 +257,30 @@ io.on('connection', (socket) => {
     emitState(roomId);
   });
 
+  socket.on('delete_room', ({ roomId = 'default' } = {}) => {
+    const room = rooms.get(roomId);
+    if (room) {
+      if (room.intervalId) clearInterval(room.intervalId);
+      rooms.delete(roomId);
+    }
+    io.to(roomId).emit('room_deleted', { roomId });
+    broadcastRoomsList();
+  });
+
+  socket.on('rename_room', ({ roomId = 'default', newName = '' } = {}) => {
+    const trimmed = String(newName).trim();
+    if (!trimmed || trimmed === roomId || rooms.has(trimmed)) return;
+    const room = rooms.get(roomId);
+    if (!room) return;
+    if (room.intervalId) clearInterval(room.intervalId);
+    room.intervalId = null;
+    room.state.isRunning = false;
+    rooms.set(trimmed, room);
+    rooms.delete(roomId);
+    io.to(roomId).emit('room_renamed', { oldId: roomId, newId: trimmed });
+    broadcastRoomsList();
+  });
+
   socket.on('disconnect', () => {
     // no-op
   });

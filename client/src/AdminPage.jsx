@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [minutes, setMinutes] = useState('3');
   const [rooms, setRooms] = useState([]);
   const [newRoomName, setNewRoomName] = useState('');
+  const [editingRoom, setEditingRoom] = useState(null); // { id, value }
   const dragSrcIdx = useRef(null);
 
   useEffect(() => {
@@ -37,14 +38,41 @@ export default function AdminPage() {
     socket.emit('get_rooms');
     const onSync = (nextState) => setState(nextState);
     const onRoomsList = (list) => setRooms(list);
+    const onRoomDeleted = ({ roomId: deletedId }) => {
+      if (deletedId === roomId) navigate('/admin');
+    };
+    const onRoomRenamed = ({ oldId, newId }) => {
+      if (oldId === roomId) navigate(`/admin?room=${encodeURIComponent(newId)}`);
+    };
     socket.on('sync_state', onSync);
     socket.on('rooms_list', onRoomsList);
+    socket.on('room_deleted', onRoomDeleted);
+    socket.on('room_renamed', onRoomRenamed);
 
     return () => {
       socket.off('sync_state', onSync);
       socket.off('rooms_list', onRoomsList);
+      socket.off('room_deleted', onRoomDeleted);
+      socket.off('room_renamed', onRoomRenamed);
     };
-  }, [roomId]);
+  }, [roomId, navigate]);
+
+  const deleteRoom = (id) => {
+    if (!window.confirm(`¿Eliminar la sesión "${id}"? Se perderán todos los discursantes.`)) return;
+    socket.emit('delete_room', { roomId: id });
+    if (id === roomId) navigate('/admin');
+  };
+
+  const startRename = (id) => setEditingRoom({ id, value: id });
+
+  const confirmRename = () => {
+    if (!editingRoom) return;
+    const trimmed = editingRoom.value.trim();
+    if (trimmed && trimmed !== editingRoom.id) {
+      socket.emit('rename_room', { roomId: editingRoom.id, newName: trimmed });
+    }
+    setEditingRoom(null);
+  };
 
   const createRoom = () => {
     const trimmed = newRoomName.trim();
@@ -151,19 +179,39 @@ export default function AdminPage() {
         {rooms.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {rooms.map((room) => (
-              <button
+              <div
                 key={room.id}
-                onClick={() => switchRoom(room.id)}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-                  room.id === roomId
-                    ? 'bg-cyan-500 text-black'
-                    : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                className={`flex items-center gap-1 rounded-xl text-sm font-semibold transition-colors ${
+                  room.id === roomId ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-200'
                 }`}
               >
-                {room.id}
-                {room.isRunning && <span className="inline-block h-2 w-2 rounded-full bg-green-400" />}
-                <span className="text-xs opacity-60">{room.speakersCount} disc.</span>
-              </button>
+                {editingRoom?.id === room.id ? (
+                  <input
+                    className="w-32 rounded-l-xl bg-slate-700 px-3 py-2 text-white outline-none"
+                    autoFocus
+                    value={editingRoom.value}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, value: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setEditingRoom(null); }}
+                    onBlur={confirmRename}
+                  />
+                ) : (
+                  <button className="flex items-center gap-2 px-3 py-2" onClick={() => switchRoom(room.id)}>
+                    {room.id}
+                    {room.isRunning && <span className="inline-block h-2 w-2 rounded-full bg-green-400" />}
+                    <span className="text-xs opacity-60">{room.speakersCount} disc.</span>
+                  </button>
+                )}
+                <button
+                  className="px-2 py-2 opacity-60 hover:opacity-100"
+                  title="Renombrar"
+                  onClick={() => startRename(room.id)}
+                >✏</button>
+                <button
+                  className="rounded-r-xl px-2 py-2 opacity-60 hover:text-red-400 hover:opacity-100"
+                  title="Eliminar sesión"
+                  onClick={() => deleteRoom(room.id)}
+                >🗑</button>
+              </div>
             ))}
           </div>
         )}
