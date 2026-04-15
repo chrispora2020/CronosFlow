@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import { socket } from './socket';
-import { TimerText } from './components/TimerText';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ProgressBar } from './components/ProgressBar';
+import { TimerText } from './components/TimerText';
 import { useRoomId } from './hooks/useRoomId';
+import { socket } from './socket';
 
 const defaultState = {
   speakers: [],
@@ -17,23 +18,52 @@ const defaultState = {
 
 export default function AdminPage() {
   const roomId = useRoomId();
+  const navigate = useNavigate();
   const [state, setState] = useState(defaultState);
   const [name, setName] = useState('');
   const [minutes, setMinutes] = useState('3');
-  const [seconds, setSeconds] = useState('0');
+  const [rooms, setRooms] = useState([]);
+  const [newRoomName, setNewRoomName] = useState('');
+  const dragSrcIdx = useRef(null);
 
   useEffect(() => {
     socket.emit('join_room', { roomId });
+    socket.emit('get_rooms');
     const onSync = (nextState) => setState(nextState);
+    const onRoomsList = (list) => setRooms(list);
     socket.on('sync_state', onSync);
+    socket.on('rooms_list', onRoomsList);
 
     return () => {
       socket.off('sync_state', onSync);
+      socket.off('rooms_list', onRoomsList);
     };
   }, [roomId]);
 
+  const createRoom = () => {
+    const trimmed = newRoomName.trim();
+    if (!trimmed) return;
+    navigate(`/admin?room=${encodeURIComponent(trimmed)}`);
+    setNewRoomName('');
+  };
+
+  const switchRoom = (id) => {
+    navigate(`/admin?room=${encodeURIComponent(id)}`);
+  };
+
+  const reorderSpeakers = (fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    const reordered = [...sortedSpeakers];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const withOrder = reordered.map((s, i) => ({ ...s, order: i + 1 }));
+    socket.emit('set_speakers', { roomId, speakers: withOrder });
+  };
+
+  const moveSpeaker = (idx, direction) => reorderSpeakers(idx, idx + direction);
+
   const addSpeaker = () => {
-    const totalSeconds = Number(minutes || 0) * 60 + Number(seconds || 0);
+    const totalSeconds = Number(minutes || 0) * 60;
     if (!name.trim() || totalSeconds <= 0) return;
 
     const updated = [
@@ -49,7 +79,6 @@ export default function AdminPage() {
     socket.emit('set_speakers', { roomId, speakers: updated });
     setName('');
     setMinutes('3');
-    setSeconds('0');
   };
 
   const deleteSpeaker = (id) => {
@@ -75,12 +104,55 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl p-4 md:p-8">
-      <header className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <h1 className="text-3xl font-black tracking-wide">CronosFlow Admin</h1>
-        <p className="text-slate-300">Sala: <strong>{roomId}</strong></p>
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <div>
+          <h1 className="text-3xl font-black tracking-wide">CronosFlow Admin</h1>
+          <p className="text-slate-300">Sesión: <strong>{roomId}</strong></p>
+        </div>
+        <button
+          className="rounded-xl bg-cyan-500 px-5 py-3 font-bold text-black"
+          onClick={() => window.open(`/display?room=${roomId}`, '_blank')}
+        >
+          📺 Abrir Display
+        </button>
       </header>
 
-      <section className="mb-6 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-4">
+      <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+        <h2 className="mb-3 text-xl font-bold">Sesiones</h2>
+        <div className="mb-3 flex gap-2">
+          <input
+            className="flex-1 rounded-xl bg-slate-800 p-3"
+            placeholder="Nueva sesión (ej: estaca1)"
+            value={newRoomName}
+            onChange={(e) => setNewRoomName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && createRoom()}
+          />
+          <button className="rounded-xl bg-cyan-600 px-5 py-2 font-bold" onClick={createRoom}>
+            Crear
+          </button>
+        </div>
+        {rooms.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {rooms.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => switchRoom(room.id)}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                  room.id === roomId
+                    ? 'bg-cyan-500 text-black'
+                    : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                }`}
+              >
+                {room.id}
+                {room.isRunning && <span className="inline-block h-2 w-2 rounded-full bg-green-400" />}
+                <span className="text-xs opacity-60">{room.speakersCount} disc.</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mb-6 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-3">
         <input
           className="rounded-xl bg-slate-800 p-3"
           placeholder="Nombre del discursante"
@@ -90,19 +162,10 @@ export default function AdminPage() {
         <input
           className="rounded-xl bg-slate-800 p-3"
           type="number"
-          min="0"
-          placeholder="Min"
+          min="1"
+          placeholder="Minutos"
           value={minutes}
           onChange={(e) => setMinutes(e.target.value)}
-        />
-        <input
-          className="rounded-xl bg-slate-800 p-3"
-          type="number"
-          min="0"
-          max="59"
-          placeholder="Seg"
-          value={seconds}
-          onChange={(e) => setSeconds(e.target.value)}
         />
         <button className="rounded-xl bg-cyan-500 p-3 font-bold text-black" onClick={addSpeaker}>
           Agregar
@@ -111,10 +174,29 @@ export default function AdminPage() {
 
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         <h2 className="mb-4 text-2xl font-bold">Discursantes</h2>
-        <div className="space-y-3">
+        <div className="space-y-2">
           {sortedSpeakers.map((speaker, idx) => (
-            <div key={speaker.id} className="grid items-center gap-2 rounded-xl bg-slate-800 p-3 md:grid-cols-[50px_1fr_120px_100px_90px]">
-              <span className="text-lg font-bold">#{idx + 1}</span>
+            <div
+              key={speaker.id}
+              draggable
+              onDragStart={() => { dragSrcIdx.current = idx; }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => { reorderSpeakers(dragSrcIdx.current, idx); dragSrcIdx.current = null; }}
+              className="grid items-center gap-2 rounded-xl bg-slate-800 p-3 md:grid-cols-[28px_28px_28px_1fr_100px_70px_90px]"
+            >
+              <span className="cursor-grab select-none text-center text-slate-500 text-xl" title="Arrastrar">⠿</span>
+              <button
+                className="rounded bg-slate-700 py-1 text-slate-300 hover:bg-slate-600 disabled:opacity-30"
+                disabled={idx === 0}
+                onClick={() => moveSpeaker(idx, -1)}
+                title="Subir"
+              >▲</button>
+              <button
+                className="rounded bg-slate-700 py-1 text-slate-300 hover:bg-slate-600 disabled:opacity-30"
+                disabled={idx === sortedSpeakers.length - 1}
+                onClick={() => moveSpeaker(idx, 1)}
+                title="Bajar"
+              >▼</button>
               <input
                 className="rounded-lg bg-slate-700 p-2"
                 value={speaker.name}
@@ -124,10 +206,10 @@ export default function AdminPage() {
                 className="rounded-lg bg-slate-700 p-2"
                 type="number"
                 min="1"
-                value={speaker.durationSeconds}
-                onChange={(e) => updateSpeaker(speaker.id, { durationSeconds: Number(e.target.value) || 0 })}
+                value={Math.round(speaker.durationSeconds / 60)}
+                onChange={(e) => updateSpeaker(speaker.id, { durationSeconds: (Number(e.target.value) || 0) * 60 })}
               />
-              <span className="text-sm text-slate-300">segundos</span>
+              <span className="text-sm text-slate-300">minutos</span>
               <button className="rounded-lg bg-red-500 px-3 py-2 font-semibold" onClick={() => deleteSpeaker(speaker.id)}>
                 Eliminar
               </button>
@@ -142,9 +224,12 @@ export default function AdminPage() {
         <p className="mb-2 text-lg">Actual: <strong>{state.currentSpeaker?.name || '—'}</strong></p>
         <p className="mb-2 text-4xl font-black"><TimerText totalSeconds={state.timeRemaining} /></p>
         <ProgressBar value={state.progress} />
-        <div className="mt-4 grid gap-2 md:grid-cols-5">
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
           <button className="rounded-xl bg-green-500 p-3 font-black text-black" onClick={() => socket.emit('start_timer', { roomId })}>▶ Iniciar</button>
           <button className="rounded-xl bg-yellow-400 p-3 font-black text-black" onClick={() => socket.emit('pause_timer', { roomId })}>⏸ Pausar</button>
+          <button className="rounded-xl bg-orange-500 p-3 font-black text-black" onClick={() => socket.emit('force_end_speaker', { roomId })}>⏱ Terminar tiempo</button>
+        </div>
+        <div className="mt-2 grid gap-2 md:grid-cols-3">
           <button className="rounded-xl bg-indigo-500 p-3 font-black" onClick={() => socket.emit('next_speaker', { roomId })}>⏭ Siguiente</button>
           <button className="rounded-xl bg-rose-500 p-3 font-black" onClick={() => socket.emit('reset_timer', { roomId })}>🔄 Reset</button>
           <button

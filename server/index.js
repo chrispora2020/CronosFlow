@@ -1,8 +1,8 @@
+import cors from 'cors';
+import dotenv from 'dotenv';
 import express from 'express';
 import http from 'http';
-import cors from 'cors';
 import { Server } from 'socket.io';
-import dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -152,6 +152,18 @@ function startTimer(roomId) {
   }, TICK_INTERVAL_MS);
 }
 
+function getRoomsList() {
+  return Array.from(rooms.entries()).map(([id, room]) => ({
+    id,
+    speakersCount: room.state.speakers.length,
+    isRunning: room.state.isRunning
+  }));
+}
+
+function broadcastRoomsList() {
+  io.emit('rooms_list', getRoomsList());
+}
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true, timestamp: Date.now() });
 });
@@ -161,6 +173,11 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     ensureRoom(roomId);
     emitState(roomId);
+    broadcastRoomsList();
+  });
+
+  socket.on('get_rooms', () => {
+    socket.emit('rooms_list', getRoomsList());
   });
 
   socket.on('set_speakers', ({ roomId = 'default', speakers = [] } = {}) => {
@@ -173,6 +190,7 @@ io.on('connection', (socket) => {
     room.state.isRunning = false;
     room.state.updatedAt = Date.now();
     emitState(roomId);
+    broadcastRoomsList();
   });
 
   socket.on('start_timer', ({ roomId = 'default' } = {}) => {
@@ -207,6 +225,14 @@ io.on('connection', (socket) => {
     stopTimer(roomId);
     room.state.currentSpeakerIndex = 0;
     room.state.timeRemaining = room.state.speakers[0]?.durationSeconds || 0;
+    room.state.updatedAt = Date.now();
+    emitState(roomId);
+  });
+
+  socket.on('force_end_speaker', ({ roomId = 'default' } = {}) => {
+    const room = ensureRoom(roomId);
+    stopTimer(roomId);
+    room.state.timeRemaining = 0;
     room.state.updatedAt = Date.now();
     emitState(roomId);
   });

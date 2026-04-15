@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { socket } from './socket';
 import { TimerText } from './components/TimerText';
 import { useRoomId } from './hooks/useRoomId';
+import { socket } from './socket';
 
 const defaultState = {
   speakers: [],
@@ -30,15 +30,19 @@ export default function DisplayPage() {
     return 'text-green-400';
   }, [ratio, state.timeRemaining]);
 
+  const timeUp = state.timeRemaining === 0 && !!state.currentSpeaker;
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-black p-6 text-center">
+    <main className={`flex min-h-screen flex-col items-center justify-center gap-8 p-6 text-center transition-colors duration-500 ${
+      timeUp ? 'bg-red-950 animate-pulse' : 'bg-black'
+    }`}>
       <p className="rounded-full border border-slate-700 px-5 py-2 text-slate-300">Sala: {roomId}</p>
       <h1 className="text-5xl font-black md:text-8xl">{state.currentSpeaker?.name || 'Esperando inicio'}</h1>
-      <div className={`text-7xl font-black md:text-[12rem] ${colorClass}`}>
+      <div className={`text-7xl font-black md:text-[12rem] ${timeUp ? 'text-red-400' : colorClass}`}>
         <TimerText totalSeconds={state.timeRemaining} />
       </div>
-      {state.timeRemaining === 0 && state.currentSpeaker && (
-        <div className="animate-pulse rounded-xl bg-red-500/20 px-8 py-4 text-4xl font-black text-red-300 md:text-6xl">
+      {timeUp && (
+        <div className="rounded-xl bg-red-500/30 px-8 py-4 text-4xl font-black text-red-300 md:text-6xl">
           TIEMPO FINALIZADO
         </div>
       )}
