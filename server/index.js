@@ -251,4 +251,13 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, () => {
   console.log(`CronosFlow server running on :${PORT}`);
+
+  // Self-ping para mantener activo el free tier de Render
+  const selfPingUrl = process.env.SELF_PING_URL;
+  if (selfPingUrl) {
+    setInterval(() => {
+      fetch(selfPingUrl).catch(() => {});
+    }, 10 * 60 * 1000); // cada 10 minutos
+    console.log(`Self-ping activo → ${selfPingUrl}`);
+  }
 });
