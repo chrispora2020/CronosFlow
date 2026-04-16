@@ -124,21 +124,26 @@ export default function DisplayPage() {
     return () => clearInterval(id);
   }, [timeUp]);
 
-  const nameEl = cfg.showName && (
-    <h1 className={`w-full max-w-[90vw] break-words px-2 font-black transition-opacity duration-500 ${
-      nameSizeClass[cfg.nameSize ?? 'md']
-    } ${timeUp && !showNameFlash ? 'opacity-0 select-none' : 'opacity-100'}`}>
+  const nameEl = (
+    <h1 className={`w-full max-w-[90vw] break-words px-2 font-black ${nameSizeClass[cfg.nameSize ?? 'md']}`}>
       {state.currentSpeaker?.name || 'Esperando inicio'}
     </h1>
   );
 
-  const timerFinEl = timeUp && (
-    <div className={`font-black text-red-300 transition-opacity duration-500 ${
-      nameSizeClass[cfg.nameSize ?? 'md']
-    } ${showNameFlash ? 'opacity-0 select-none' : 'opacity-100'}`}>
+  const timerFinEl = (
+    <div className={`font-black text-red-300 ${nameSizeClass[cfg.nameSize ?? 'md']}`}>
       TIEMPO FINALIZADO
     </div>
   );
+
+  // What to show in the "name slot" — alternates when time is up
+  const nameSlot = timeUp && cfg.showName
+    ? (showNameFlash ? timerFinEl : nameEl)   // ← alternates
+    : timeUp && !cfg.showName
+    ? timerFinEl                               // ← nombre desactivado, solo cartel
+    : cfg.showName
+    ? nameEl                                  // ← normal
+    : null;
 
   const timerEl = cfg.showTimer && (
     <div className={`font-black tabular-nums ${sizeClass} ${timerColor}`}>
@@ -162,15 +167,8 @@ export default function DisplayPage() {
       )}
 
       {cfg.namePosition === 'top'
-        ? <>{nameEl}{timerFinEl}{timerEl}</>
-        : <>{timerEl}{timerFinEl}{nameEl}</>}
-
-      {/* legacy fallback: show TIEMPO FINALIZADO when name is disabled */}
-      {timeUp && !cfg.showName && (
-        <div className="font-black text-red-300 text-4xl sm:text-6xl">
-          TIEMPO FINALIZADO
-        </div>
-      )}
+        ? <>{nameSlot}{timerEl}</>
+        : <>{timerEl}{nameSlot}</>}
 
       {!isFullscreen && (
         <button
