@@ -116,12 +116,28 @@ export default function DisplayPage() {
   const timerColor = timeUp ? 'text-red-400' : colorClass;
   const sizeClass = timerSizeClass[cfg.timerSize] ?? timerSizeClass.lg;
 
+  // Alternates between name and "TIEMPO FINALIZADO" when time is up
+  const [showNameFlash, setShowNameFlash] = useState(true);
+  useEffect(() => {
+    if (!timeUp) { setShowNameFlash(true); return; }
+    const id = setInterval(() => setShowNameFlash((v) => !v), 1500);
+    return () => clearInterval(id);
+  }, [timeUp]);
+
   const nameEl = cfg.showName && (
-    <h1 className={`w-full max-w-[90vw] break-words px-2 font-black ${
+    <h1 className={`w-full max-w-[90vw] break-words px-2 font-black transition-opacity duration-500 ${
       nameSizeClass[cfg.nameSize ?? 'md']
-    }`}>
+    } ${timeUp && !showNameFlash ? 'opacity-0 select-none' : 'opacity-100'}`}>
       {state.currentSpeaker?.name || 'Esperando inicio'}
     </h1>
+  );
+
+  const timerFinEl = timeUp && (
+    <div className={`font-black text-red-300 transition-opacity duration-500 ${
+      nameSizeClass[cfg.nameSize ?? 'md']
+    } ${showNameFlash ? 'opacity-0 select-none' : 'opacity-100'}`}>
+      TIEMPO FINALIZADO
+    </div>
   );
 
   const timerEl = cfg.showTimer && (
@@ -145,10 +161,13 @@ export default function DisplayPage() {
         </p>
       )}
 
-      {cfg.namePosition === 'top' ? <>{nameEl}{timerEl}</> : <>{timerEl}{nameEl}</>}
+      {cfg.namePosition === 'top'
+        ? <>{nameEl}{timerFinEl}{timerEl}</>
+        : <>{timerEl}{timerFinEl}{nameEl}</>}
 
-      {timeUp && (
-        <div className="rounded-xl bg-red-500/30 px-6 py-3 text-2xl font-black text-red-300 sm:text-4xl md:text-6xl">
+      {/* legacy fallback: show TIEMPO FINALIZADO when name is disabled */}
+      {timeUp && !cfg.showName && (
+        <div className="font-black text-red-300 text-4xl sm:text-6xl">
           TIEMPO FINALIZADO
         </div>
       )}
