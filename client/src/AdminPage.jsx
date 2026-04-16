@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [state, setState] = useState(defaultState);
   const [name, setName] = useState('');
   const [minutes, setMinutes] = useState('3');
+  const [editingSpeaker, setEditingSpeaker] = useState(null); // { id, name, minutes }
   const [rooms, setRooms] = useState([]);
   const [newRoomName, setNewRoomName] = useState('');
   const [editingRoom, setEditingRoom] = useState(null); // { id, value }
@@ -98,6 +99,17 @@ export default function AdminPage() {
       active ? 'bg-cyan-500 text-black' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
     }`;
 
+  const startEditSpeaker = (speaker) =>
+    setEditingSpeaker({ id: speaker.id, name: speaker.name, minutes: String(Math.round(speaker.durationSeconds / 60)) });
+
+  const commitEditSpeaker = () => {
+    if (!editingSpeaker) return;
+    const mins = Number(editingSpeaker.minutes);
+    if (!editingSpeaker.name.trim() || mins <= 0) return;
+    updateSpeaker(editingSpeaker.id, { name: editingSpeaker.name.trim(), durationSeconds: mins * 60 });
+    setEditingSpeaker(null);
+  };
+
   const reorderSpeakers = (fromIdx, toIdx) => {
     if (fromIdx === toIdx) return;
     const reordered = [...sortedSpeakers];
@@ -129,10 +141,11 @@ export default function AdminPage() {
   };
 
   const deleteSpeaker = (id) => {
+    const speaker = state.speakers.find((s) => s.id === id);
+    if (!window.confirm(`¿Eliminar a "${speaker?.name ?? 'este discursante'}"?`)) return;
     const filtered = state.speakers
       .filter((speaker) => speaker.id !== id)
       .map((speaker, index) => ({ ...speaker, order: index + 1 }));
-
     socket.emit('set_speakers', { roomId, speakers: filtered });
   };
 
@@ -262,46 +275,56 @@ export default function AdminPage() {
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         <h2 className="mb-4 text-2xl font-bold">Discursantes</h2>
         <div className="space-y-2">
-          {sortedSpeakers.map((speaker, idx) => (
-            <div
-              key={speaker.id}
-              draggable
-              onDragStart={() => { dragSrcIdx.current = idx; }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => { reorderSpeakers(dragSrcIdx.current, idx); dragSrcIdx.current = null; }}
-              className="grid items-center gap-2 rounded-xl bg-slate-800 p-3 md:grid-cols-[28px_28px_28px_1fr_100px_70px_90px]"
-            >
-              <span className="cursor-grab select-none text-center text-slate-500 text-xl" title="Arrastrar">⠿</span>
-              <button
-                className="rounded bg-slate-700 py-1 text-slate-300 hover:bg-slate-600 disabled:opacity-30"
-                disabled={idx === 0}
-                onClick={() => moveSpeaker(idx, -1)}
-                title="Subir"
-              >▲</button>
-              <button
-                className="rounded bg-slate-700 py-1 text-slate-300 hover:bg-slate-600 disabled:opacity-30"
-                disabled={idx === sortedSpeakers.length - 1}
-                onClick={() => moveSpeaker(idx, 1)}
-                title="Bajar"
-              >▼</button>
-              <input
-                className="rounded-lg bg-slate-700 p-2"
-                value={speaker.name}
-                onChange={(e) => updateSpeaker(speaker.id, { name: e.target.value })}
-              />
-              <input
-                className="rounded-lg bg-slate-700 p-2"
-                type="number"
-                min="1"
-                value={Math.round(speaker.durationSeconds / 60)}
-                onChange={(e) => updateSpeaker(speaker.id, { durationSeconds: (Number(e.target.value) || 0) * 60 })}
-              />
-              <span className="text-sm text-slate-300">minutos</span>
-              <button className="rounded-lg bg-red-500 px-3 py-2 font-semibold" onClick={() => deleteSpeaker(speaker.id)}>
-                Eliminar
-              </button>
-            </div>
-          ))}
+          {sortedSpeakers.map((speaker, idx) => {
+            const isEditing = editingSpeaker?.id === speaker.id;
+            return (
+              <div
+                key={speaker.id}
+                draggable={!isEditing}
+                onDragStart={() => { if (!isEditing) dragSrcIdx.current = idx; }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => { reorderSpeakers(dragSrcIdx.current, idx); dragSrcIdx.current = null; }}
+                className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-800 p-3"
+              >
+                {/* orden / drag */}
+                <span className="cursor-grab select-none text-slate-500 text-xl" title="Arrastrar">⠿</span>
+                <button className="rounded bg-slate-700 px-2 py-1 text-slate-300 hover:bg-slate-600 disabled:opacity-30" disabled={idx === 0} onClick={() => moveSpeaker(idx, -1)}>▲</button>
+                <button className="rounded bg-slate-700 px-2 py-1 text-slate-300 hover:bg-slate-600 disabled:opacity-30" disabled={idx === sortedSpeakers.length - 1} onClick={() => moveSpeaker(idx, 1)}>▼</button>
+
+                {isEditing ? (
+                  <>
+                    <input
+                      className="min-w-0 flex-1 rounded-lg bg-slate-700 p-2 outline-none ring-2 ring-cyan-500"
+                      autoFocus
+                      value={editingSpeaker.name}
+                      onChange={(e) => setEditingSpeaker({ ...editingSpeaker, name: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitEditSpeaker(); if (e.key === 'Escape') setEditingSpeaker(null); }}
+                    />
+                    <div className="flex items-center gap-1">
+                      <input
+                        className="w-20 rounded-lg bg-slate-700 p-2 outline-none ring-2 ring-cyan-500"
+                        type="number"
+                        min="1"
+                        value={editingSpeaker.minutes}
+                        onChange={(e) => setEditingSpeaker({ ...editingSpeaker, minutes: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') commitEditSpeaker(); if (e.key === 'Escape') setEditingSpeaker(null); }}
+                      />
+                      <span className="text-sm text-slate-400">min</span>
+                    </div>
+                    <button className="rounded-lg bg-green-500 px-3 py-2 font-bold text-black" onClick={commitEditSpeaker} title="Guardar">✓</button>
+                    <button className="rounded-lg bg-slate-600 px-3 py-2 font-bold" onClick={() => setEditingSpeaker(null)} title="Cancelar">✗</button>
+                  </>
+                ) : (
+                  <>
+                    <span className="min-w-0 flex-1 truncate font-semibold">{speaker.name}</span>
+                    <span className="rounded-lg bg-slate-700 px-3 py-1 text-sm text-slate-300">{Math.round(speaker.durationSeconds / 60)} min</span>
+                    <button className="rounded-lg bg-slate-600 px-3 py-2 text-slate-200 hover:bg-slate-500" onClick={() => startEditSpeaker(speaker)} title="Editar">✏</button>
+                    <button className="rounded-lg bg-red-500/80 px-3 py-2 font-semibold hover:bg-red-500" onClick={() => deleteSpeaker(speaker.id)} title="Eliminar">🗑</button>
+                  </>
+                )}
+              </div>
+            );
+          })}
           {!sortedSpeakers.length && <p className="text-slate-400">Sin discursantes todavía.</p>}
         </div>
       </section>
