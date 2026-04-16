@@ -353,9 +353,19 @@ export default function AdminPage() {
           <div>
             <p className="mb-2 text-sm text-slate-400">Tamaño del timer</p>
             <div className="flex gap-2">
-              {['sm', 'md', 'lg'].map((size) => (
+              {['sm', 'md', 'lg', 'xl'].map((size) => (
                 <button key={size} className={cfgBtn(cfg.timerSize === size)} onClick={() => updateDisplayConfig({ timerSize: size })}>
                   {size.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm text-slate-400">Tamaño del nombre</p>
+            <div className="flex gap-2">
+              {[['sm', 'Pequeño'], ['md', 'Mediano'], ['lg', 'Grande']].map(([size, label]) => (
+                <button key={size} className={cfgBtn((cfg.nameSize ?? 'md') === size)} onClick={() => updateDisplayConfig({ nameSize: size })}>
+                  {label}
                 </button>
               ))}
             </div>

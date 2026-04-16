@@ -8,13 +8,21 @@ const defaultConfig = {
   showName: true,
   showTimer: true,
   namePosition: 'top',
-  timerSize: 'lg'
+  timerSize: 'lg',
+  nameSize: 'md'
 };
 
 const timerSizeClass = {
   sm: 'text-6xl leading-none sm:text-7xl',
   md: 'text-7xl leading-none sm:text-8xl md:text-9xl',
-  lg: 'text-8xl leading-none sm:text-9xl md:text-[12rem]'
+  lg: 'text-8xl leading-none sm:text-9xl md:text-[12rem]',
+  xl: 'text-9xl leading-none sm:text-[10rem] md:text-[16rem]'
+};
+
+const nameSizeClass = {
+  sm: 'text-xl leading-tight sm:text-2xl md:text-3xl',
+  md: 'text-3xl leading-tight sm:text-5xl md:text-7xl',
+  lg: 'text-5xl leading-tight sm:text-7xl md:text-9xl'
 };
 
 export default function DisplayPage() {
@@ -109,7 +117,9 @@ export default function DisplayPage() {
   const sizeClass = timerSizeClass[cfg.timerSize] ?? timerSizeClass.lg;
 
   const nameEl = cfg.showName && (
-    <h1 className="w-full max-w-[90vw] break-words px-2 text-3xl font-black leading-tight sm:text-5xl md:text-7xl">
+    <h1 className={`w-full max-w-[90vw] break-words px-2 font-black ${
+      nameSizeClass[cfg.nameSize ?? 'md']
+    }`}>
       {state.currentSpeaker?.name || 'Esperando inicio'}
     </h1>
   );
