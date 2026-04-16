@@ -9,7 +9,24 @@ const defaultConfig = {
   showTimer: true,
   namePosition: 'top',
   timerSize: 'lg',
-  nameSize: 'md'
+  nameSize: 'md',
+  alertEffect: 'pulse',
+  bgColor: 'black',
+  timerColorMode: 'auto'
+};
+
+const bgColorClass = {
+  black:  'bg-black',
+  slate:  'bg-slate-950',
+  indigo: 'bg-indigo-950'
+};
+
+// Each value includes both the animation and a base bg so they work standalone
+const alertEffectClass = {
+  pulse: 'animate-pulse bg-red-950',
+  flash: 'animate-alert-flash bg-red-950',
+  shake: 'animate-alert-shake bg-red-950',
+  glow:  'animate-alert-glow  bg-red-950'
 };
 
 const timerSizeClass = {
@@ -107,10 +124,14 @@ export default function DisplayPage() {
   const ratio = currentSpeakerDuration > 0 ? state.timeRemaining / currentSpeakerDuration : 0;
 
   const colorClass = useMemo(() => {
+    const mode = cfg.timerColorMode ?? 'auto';
+    if (mode !== 'auto') {
+      return { white: 'text-white', cyan: 'text-cyan-400', amber: 'text-amber-400' }[mode] ?? 'text-green-400';
+    }
     if (state.timeRemaining <= 30) return 'text-red-400';
     if (ratio < 0.5) return 'text-yellow-300';
     return 'text-green-400';
-  }, [ratio, state.timeRemaining]);
+  }, [ratio, state.timeRemaining, cfg.timerColorMode]);
 
   const timeUp = state.timeRemaining === 0 && !!state.currentSpeaker;
   const timerColor = timeUp ? 'text-red-400' : colorClass;
@@ -144,7 +165,9 @@ export default function DisplayPage() {
 
   return (
     <main className={`flex min-h-screen w-full flex-col items-center justify-center gap-6 overflow-hidden p-4 text-center transition-colors duration-500 ${
-      timeUp ? 'animate-pulse bg-red-950' : 'bg-black'
+      timeUp
+        ? (alertEffectClass[cfg.alertEffect ?? 'pulse'] ?? alertEffectClass.pulse)
+        : (bgColorClass[cfg.bgColor ?? 'black'] ?? 'bg-black')
     }`}>
       {!isFullscreen && (
         <p className="rounded-full border border-slate-700 px-4 py-1 text-sm text-slate-400">

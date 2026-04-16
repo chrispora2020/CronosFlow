@@ -18,7 +18,10 @@ const defaultState = {
     showName: true,
     showTimer: true,
     namePosition: 'top',
-    timerSize: 'lg'
+    timerSize: 'lg',
+    alertEffect: 'pulse',
+    bgColor: 'black',
+    timerColorMode: 'auto'
   }
 };
 
@@ -365,6 +368,67 @@ export default function AdminPage() {
             <div className="flex gap-2">
               {[['sm', 'Pequeño'], ['md', 'Mediano'], ['lg', 'Grande']].map(([size, label]) => (
                 <button key={size} className={cfgBtn((cfg.nameSize ?? 'md') === size)} onClick={() => updateDisplayConfig({ nameSize: size })}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm text-slate-400">Efecto de alerta (tiempo agotado)</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ['pulse', 'Pulso'],
+                ['flash', 'Destello'],
+                ['shake', 'Vibración'],
+                ['glow',  'Resplandor'],
+              ].map(([val, label]) => (
+                <button key={val} className={cfgBtn((cfg.alertEffect ?? 'pulse') === val)} onClick={() => updateDisplayConfig({ alertEffect: val })}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm text-slate-400">Fondo del display</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ['black',  'Negro',    'bg-black'],
+                ['slate',  'Pizarrón', 'bg-slate-950'],
+                ['indigo', 'Índigo',   'bg-indigo-950'],
+              ].map(([val, label, swatch]) => (
+                <button
+                  key={val}
+                  className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border-2 transition-colors ${
+                    (cfg.bgColor ?? 'black') === val
+                      ? 'border-cyan-500 text-white bg-slate-700'
+                      : 'border-slate-700 text-slate-300 bg-slate-800 hover:border-slate-500'
+                  }`}
+                  onClick={() => updateDisplayConfig({ bgColor: val })}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full border border-slate-500 ${swatch}`} />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm text-slate-400">Color del timer</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ['auto',  'Auto',  ''],
+                ['white', 'Blanco','text-white'],
+                ['cyan',  'Cian',  'text-cyan-400'],
+                ['amber', 'Ámbar', 'text-amber-400'],
+              ].map(([val, label, textCls]) => (
+                <button
+                  key={val}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                    (cfg.timerColorMode ?? 'auto') === val
+                      ? 'bg-cyan-500 text-black'
+                      : `bg-slate-700 hover:bg-slate-600 ${textCls || 'text-slate-300'}`
+                  }`}
+                  onClick={() => updateDisplayConfig({ timerColorMode: val })}
+                >
                   {label}
                 </button>
               ))}
