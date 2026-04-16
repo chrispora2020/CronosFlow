@@ -124,30 +124,21 @@ export default function DisplayPage() {
     return () => clearInterval(id);
   }, [timeUp]);
 
-  const nameEl = (
+  const nameEl = cfg.showName && !timeUp && (
     <h1 className={`w-full max-w-[90vw] break-words px-2 font-black ${nameSizeClass[cfg.nameSize ?? 'md']}`}>
       {state.currentSpeaker?.name || 'Esperando inicio'}
     </h1>
   );
 
-  const timerFinEl = (
-    <div className={`font-black text-red-300 ${nameSizeClass[cfg.nameSize ?? 'md']}`}>
-      TIEMPO FINALIZADO
-    </div>
-  );
-
-  // What to show in the "name slot" — alternates when time is up
-  const nameSlot = timeUp && cfg.showName
-    ? (showNameFlash ? timerFinEl : nameEl)   // ← alternates
-    : timeUp && !cfg.showName
-    ? timerFinEl                               // ← nombre desactivado, solo cartel
-    : cfg.showName
-    ? nameEl                                  // ← normal
-    : null;
-
+  // When time is up: timer slot alternates between "TIEMPO FINALIZADO" and the speaker name
   const timerEl = cfg.showTimer && (
     <div className={`font-black tabular-nums ${sizeClass} ${timerColor}`}>
-      <TimerText totalSeconds={state.timeRemaining} />
+      {timeUp
+        ? (showNameFlash
+            ? 'TIEMPO FINALIZADO'
+            : (cfg.showName ? state.currentSpeaker?.name : 'TIEMPO FINALIZADO'))
+        : <TimerText totalSeconds={state.timeRemaining} />
+      }
     </div>
   );
 
@@ -167,8 +158,8 @@ export default function DisplayPage() {
       )}
 
       {cfg.namePosition === 'top'
-        ? <>{nameSlot}{timerEl}</>
-        : <>{timerEl}{nameSlot}</>}
+        ? <>{nameEl}{timerEl}</>
+        : <>{timerEl}{nameEl}</>}
 
       {!isFullscreen && (
         <button
