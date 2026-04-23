@@ -37,6 +37,9 @@ export default function AdminPage() {
   const [editingRoom, setEditingRoom] = useState(null); // { id, value }
   const [followMode, setFollowMode] = useState(false);
   const dragSrcIdx = useRef(null);
+  const dragRoomSrcIdx = useRef(null);
+  const [open, setOpen] = useState({ sessions: false, speakers: true, config: false });
+  const toggle = (key) => setOpen((o) => ({ ...o, [key]: !o[key] }));
 
   useEffect(() => {
     socket.emit('join_room', { roomId });
@@ -89,6 +92,15 @@ export default function AdminPage() {
 
   const switchRoom = (id) => {
     navigate(`/admin?room=${encodeURIComponent(id)}`);
+  };
+
+  const reorderRooms = (fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    const reordered = [...rooms];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    setRooms(reordered);
+    socket.emit('reorder_rooms', { order: reordered.map((r) => r.id) });
   };
 
   const cfg = state.displayConfig ?? defaultState.displayConfig;
@@ -165,6 +177,22 @@ export default function AdminPage() {
     [state.speakers]
   );
 
+  const sectionToggle = (key, title, badge = null) => (
+    <button
+      className="flex w-full items-center justify-between gap-2 text-left group"
+      onClick={() => toggle(key)}
+      aria-expanded={open[key]}
+    >
+      <h2 className="flex items-center gap-2 text-xl font-bold">
+        {title}
+        {badge}
+      </h2>
+      <span
+        className={`inline-block text-slate-400 transition-transform duration-200 group-hover:text-slate-200 ${open[key] ? 'rotate-180' : ''}`}
+      >▾</span>
+    </button>
+  );
+
   return (
     <main className="mx-auto min-h-screen max-w-6xl p-4 md:p-8">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
@@ -201,82 +229,96 @@ export default function AdminPage() {
       </header>
 
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="mb-3 text-xl font-bold">Sesiones</h2>
-        <div className="mb-3 flex gap-2">
-          <input
-            className="flex-1 rounded-xl bg-slate-800 p-3"
-            placeholder="Nueva sesión (ej: estaca1)"
-            value={newRoomName}
-            onChange={(e) => setNewRoomName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && createRoom()}
-          />
-          <button className="rounded-xl bg-cyan-600 px-5 py-2 font-bold" onClick={createRoom}>
-            Crear
-          </button>
-        </div>
-        {rooms.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {rooms.map((room) => (
-              <div
-                key={room.id}
-                className={`flex items-center gap-1 rounded-xl text-sm font-semibold transition-colors ${
-                  room.id === roomId ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-200'
-                }`}
-              >
-                {editingRoom?.id === room.id ? (
-                  <input
-                    className="w-32 rounded-l-xl bg-slate-700 px-3 py-2 text-white outline-none"
-                    autoFocus
-                    value={editingRoom.value}
-                    onChange={(e) => setEditingRoom({ ...editingRoom, value: e.target.value })}
-                    onKeyDown={(e) => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setEditingRoom(null); }}
-                    onBlur={confirmRename}
-                  />
-                ) : (
-                  <button className="flex items-center gap-2 px-3 py-2" onClick={() => switchRoom(room.id)}>
-                    {room.id}
-                    {room.isRunning && <span className="inline-block h-2 w-2 rounded-full bg-green-400" />}
-                    <span className="text-xs opacity-60">{room.speakersCount} disc.</span>
-                  </button>
-                )}
-                <button
-                  className="px-2 py-2 opacity-60 hover:opacity-100"
-                  title="Renombrar"
-                  onClick={() => startRename(room.id)}
-                >✏</button>
-                <button
-                  className="rounded-r-xl px-2 py-2 opacity-60 hover:text-red-400 hover:opacity-100"
-                  title="Eliminar sesión"
-                  onClick={() => deleteRoom(room.id)}
-                >🗑</button>
+        {sectionToggle('sessions', 'Sesiones', (
+          <span className="text-sm font-normal text-slate-400">({rooms.length})</span>
+        ))}
+        {open.sessions && (
+          <div className="mt-4">
+            <div className="mb-3 flex gap-2">
+              <input
+                className="flex-1 rounded-xl bg-slate-800 p-3"
+                placeholder="Nueva sesión (ej: estaca1)"
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && createRoom()}
+              />
+              <button className="rounded-xl bg-cyan-600 px-5 py-2 font-bold" onClick={createRoom}>
+                Crear
+              </button>
+            </div>
+            {rooms.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {rooms.map((room, idx) => (
+                  <div
+                    key={room.id}
+                    draggable={editingRoom?.id !== room.id}
+                    onDragStart={() => { dragRoomSrcIdx.current = idx; }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => { reorderRooms(dragRoomSrcIdx.current, idx); dragRoomSrcIdx.current = null; }}
+                    className={`flex items-center gap-1 rounded-xl text-sm font-semibold transition-colors ${
+                      room.id === roomId ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-200'
+                    }`}
+                  >
+                    <span className="cursor-grab select-none px-2 text-lg opacity-40 hover:opacity-80" title="Arrastrar">⠿</span>
+                    {editingRoom?.id === room.id ? (
+                      <input
+                        className="w-32 rounded-l-xl bg-slate-700 px-3 py-2 text-white outline-none"
+                        autoFocus
+                        value={editingRoom.value}
+                        onChange={(e) => setEditingRoom({ ...editingRoom, value: e.target.value })}
+                        onKeyDown={(e) => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setEditingRoom(null); }}
+                        onBlur={confirmRename}
+                      />
+                    ) : (
+                      <button className="flex items-center gap-2 px-3 py-2" onClick={() => switchRoom(room.id)}>
+                        {room.id}
+                        {room.isRunning && <span className="inline-block h-2 w-2 rounded-full bg-green-400" />}
+                        <span className="text-xs opacity-60">{room.speakersCount} disc.</span>
+                      </button>
+                    )}
+                    <button
+                      className="px-2 py-2 opacity-60 hover:opacity-100"
+                      title="Renombrar"
+                      onClick={() => startRename(room.id)}
+                    >✏</button>
+                    <button
+                      className="rounded-r-xl px-2 py-2 opacity-60 hover:text-red-400 hover:opacity-100"
+                      title="Eliminar sesión"
+                      onClick={() => deleteRoom(room.id)}
+                    >🗑</button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
         )}
       </section>
 
-      <section className="mb-6 grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-3">
-        <input
-          className="rounded-xl bg-slate-800 p-3"
-          placeholder="Nombre del discursante"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          className="rounded-xl bg-slate-800 p-3"
-          type="number"
-          min="1"
-          placeholder="Minutos"
-          value={minutes}
-          onChange={(e) => setMinutes(e.target.value)}
-        />
-        <button className="rounded-xl bg-cyan-500 p-3 font-bold text-black" onClick={addSpeaker}>
-          Agregar
-        </button>
-      </section>
-
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="mb-4 text-2xl font-bold">Discursantes</h2>
+        {sectionToggle('speakers', 'Discursantes', (
+          <span className="text-sm font-normal text-slate-400">({sortedSpeakers.length})</span>
+        ))}
+        {open.speakers && (
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <input
+                className="rounded-xl bg-slate-800 p-3"
+                placeholder="Nombre del discursante"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="rounded-xl bg-slate-800 p-3"
+                type="number"
+                min="1"
+                placeholder="Minutos"
+                value={minutes}
+                onChange={(e) => setMinutes(e.target.value)}
+              />
+              <button className="rounded-xl bg-cyan-500 p-3 font-bold text-black" onClick={addSpeaker}>
+                Agregar
+              </button>
+            </div>
         <div className="space-y-2">
           {sortedSpeakers.map((speaker, idx) => {
             const isEditing = editingSpeaker?.id === speaker.id;
@@ -328,13 +370,16 @@ export default function AdminPage() {
               </div>
             );
           })}
-          {!sortedSpeakers.length && <p className="text-slate-400">Sin discursantes todavía.</p>}
-        </div>
+            {!sortedSpeakers.length && <p className="text-slate-400">Sin discursantes todavía.</p>}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        <h2 className="mb-4 text-xl font-bold">Configuración del Display</h2>
-        <div className="grid gap-5 sm:grid-cols-2">
+        {sectionToggle('config', 'Configuración del Display')}
+        {open.config && (
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <div>
             <p className="mb-2 text-sm text-slate-400">Mostrar en pantalla</p>
             <div className="flex gap-2">
@@ -435,6 +480,7 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">

@@ -24,6 +24,7 @@ app.use(cors({ origin: clientUrl }));
 app.use(express.json());
 
 const rooms = new Map();
+let roomsOrder = [];
 
 function getInitialState() {
   return {
@@ -159,11 +160,16 @@ function startTimer(roomId) {
 }
 
 function getRoomsList() {
-  return Array.from(rooms.entries()).map(([id, room]) => ({
-    id,
-    speakersCount: room.state.speakers.length,
-    isRunning: room.state.isRunning
-  }));
+  // ensure any room not yet in order is appended
+  for (const id of rooms.keys()) {
+    if (!roomsOrder.includes(id)) roomsOrder.push(id);
+  }
+  return roomsOrder
+    .filter((id) => rooms.has(id))
+    .map((id) => {
+      const room = rooms.get(id);
+      return { id, speakersCount: room.state.speakers.length, isRunning: room.state.isRunning };
+    });
 }
 
 function broadcastRoomsList() {
@@ -180,6 +186,7 @@ io.on('connection', (socket) => {
   socket.on('join_room', ({ roomId = 'default' } = {}) => {
     socket.join(roomId);
     ensureRoom(roomId);
+    if (!roomsOrder.includes(roomId)) roomsOrder.push(roomId);
     emitState(roomId);
     broadcastRoomsList();
   });
@@ -274,6 +281,7 @@ io.on('connection', (socket) => {
       if (room.intervalId) clearInterval(room.intervalId);
       rooms.delete(roomId);
     }
+    roomsOrder = roomsOrder.filter((id) => id !== roomId);
     io.to(roomId).emit('room_deleted', { roomId });
     broadcastRoomsList();
   });
@@ -288,7 +296,19 @@ io.on('connection', (socket) => {
     room.state.isRunning = false;
     rooms.set(trimmed, room);
     rooms.delete(roomId);
+    const idx = roomsOrder.indexOf(roomId);
+    if (idx !== -1) roomsOrder[idx] = trimmed;
     io.to(roomId).emit('room_renamed', { oldId: roomId, newId: trimmed });
+    broadcastRoomsList();
+  });
+
+  socket.on('reorder_rooms', ({ order = [] } = {}) => {
+    const validOrder = order.filter((id) => rooms.has(id));
+    // append any rooms not included in the payload
+    for (const id of roomsOrder) {
+      if (!validOrder.includes(id)) validOrder.push(id);
+    }
+    roomsOrder = validOrder;
     broadcastRoomsList();
   });
 
