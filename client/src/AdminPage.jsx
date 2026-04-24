@@ -35,16 +35,19 @@ export default function AdminPage() {
   const [rooms, setRooms] = useState([]);
   const [newRoomName, setNewRoomName] = useState('');
   const [editingRoom, setEditingRoom] = useState(null); // { id, value }
-  const [followMode, setFollowMode] = useState(false);
   const dragSrcIdx = useRef(null);
   const dragRoomSrcIdx = useRef(null);
   const [open, setOpen] = useState({ sessions: false, speakers: true, config: false });
   const toggle = (key) => setOpen((o) => ({ ...o, [key]: !o[key] }));
 
   useEffect(() => {
-    socket.emit('join_room', { roomId });
-    socket.emit('get_rooms');
-    socket.emit('set_global_active_room', { roomId });
+    const rejoin = () => {
+      socket.emit('join_room', { roomId });
+      socket.emit('get_rooms');
+      socket.emit('set_global_active_room', { roomId });
+    };
+    rejoin();
+    socket.on('connect', rejoin);
     const onSync = (nextState) => setState(nextState);
     const onRoomsList = (list) => setRooms(list);
     const onRoomDeleted = ({ roomId: deletedId }) => {
@@ -59,6 +62,7 @@ export default function AdminPage() {
     socket.on('room_renamed', onRoomRenamed);
 
     return () => {
+      socket.off('connect', rejoin);
       socket.off('sync_state', onSync);
       socket.off('rooms_list', onRoomsList);
       socket.off('room_deleted', onRoomDeleted);
@@ -200,31 +204,13 @@ export default function AdminPage() {
           <h1 className="text-3xl font-black tracking-wide">CronosFlow Admin</h1>
           <p className="text-slate-300">Sesión: <strong>{roomId}</strong></p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div>
           <button
             className="rounded-xl bg-cyan-500 px-5 py-3 font-bold text-black hover:bg-cyan-400 transition-colors"
-            onClick={() => window.open(followMode ? '/display?follow=1' : `/display?room=${roomId}`, '_blank')}
+            onClick={() => window.open('/display?follow=1', '_blank')}
           >
             📺 Abrir Display
           </button>
-          <div className="flex items-center rounded-xl bg-slate-800 p-1 text-sm">
-            <button
-              onClick={() => setFollowMode(false)}
-              className={`rounded-lg px-3 py-1.5 font-semibold transition-colors ${
-                !followMode ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              📌 Por sesión
-            </button>
-            <button
-              onClick={() => setFollowMode(true)}
-              className={`rounded-lg px-3 py-1.5 font-semibold transition-colors ${
-                followMode ? 'bg-cyan-500 text-black' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              📡 Modo libre
-            </button>
-          </div>
         </div>
       </header>
 

@@ -106,8 +106,13 @@ export default function DisplayPage() {
     if (!followMode) return;
     socket.emit('get_global_active_room');
     const onGlobalChanged = ({ roomId }) => setActiveRoom(roomId);
+    const onConnect = () => socket.emit('get_global_active_room');
     socket.on('global_room_changed', onGlobalChanged);
-    return () => socket.off('global_room_changed', onGlobalChanged);
+    socket.on('connect', onConnect);
+    return () => {
+      socket.off('global_room_changed', onGlobalChanged);
+      socket.off('connect', onConnect);
+    };
   }, [followMode]);
 
   // Join the active room and sync state
@@ -115,8 +120,13 @@ export default function DisplayPage() {
     if (!activeRoom) return;
     socket.emit('join_room', { roomId: activeRoom });
     const onSync = (nextState) => setState(nextState);
+    const onConnect = () => socket.emit('join_room', { roomId: activeRoom });
     socket.on('sync_state', onSync);
-    return () => socket.off('sync_state', onSync);
+    socket.on('connect', onConnect);
+    return () => {
+      socket.off('sync_state', onSync);
+      socket.off('connect', onConnect);
+    };
   }, [activeRoom]);
 
   const cfg = state.displayConfig ?? defaultConfig;
