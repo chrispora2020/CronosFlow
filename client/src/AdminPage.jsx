@@ -41,6 +41,20 @@ export default function AdminPage() {
   const toggle = (key) => setOpen((o) => ({ ...o, [key]: !o[key] }));
 
   useEffect(() => {
+    // When no room is selected just fetch the list and auto-redirect to first available
+    if (!roomId) {
+      socket.emit('get_rooms');
+      const onRoomsList = (list) => {
+        if (list.length > 0) {
+          navigate(`/admin?room=${encodeURIComponent(list[0].id)}`, { replace: true });
+        } else {
+          setRooms(list);
+        }
+      };
+      socket.on('rooms_list', onRoomsList);
+      return () => socket.off('rooms_list', onRoomsList);
+    }
+
     const rejoin = () => {
       socket.emit('join_room', { roomId });
       socket.emit('get_rooms');
@@ -196,6 +210,28 @@ export default function AdminPage() {
       >▾</span>
     </button>
   );
+
+  if (!roomId) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 p-8">
+        <h1 className="text-3xl font-black tracking-wide">CronosFlow</h1>
+        <p className="text-slate-400">No hay sesiones activas. Crea una para comenzar.</p>
+        <div className="flex w-full gap-2">
+          <input
+            className="flex-1 rounded-xl bg-slate-800 p-3"
+            placeholder="Nombre de la sesión"
+            value={newRoomName}
+            onChange={(e) => setNewRoomName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && createRoom()}
+            autoFocus
+          />
+          <button className="rounded-xl bg-cyan-600 px-5 py-3 font-bold" onClick={createRoom}>
+            Crear
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl p-4 md:p-8">
