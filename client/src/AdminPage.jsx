@@ -39,6 +39,49 @@ export default function AdminPage() {
   const dragRoomSrcIdx = useRef(null);
   const [open, setOpen] = useState({ sessions: false, speakers: true, config: false });
   const toggle = (key) => setOpen((o) => ({ ...o, [key]: !o[key] }));
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const fileInputRef = useRef(null);
+
+  const parseSpeakersText = (text) =>
+    text
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        // Accepts: "Name – X min" or "Name - X min" (en-dash or hyphen)
+        const match = line.match(/^(.+?)\s*[–\-]\s*(\d+(?:[.,]\d+)?)\s*min/i);
+        if (!match) return null;
+        const mins = parseFloat(match[2].replace(',', '.'));
+        if (!match[1].trim() || mins <= 0) return null;
+        return { id: crypto.randomUUID(), name: match[1].trim(), durationSeconds: Math.round(mins * 60) };
+      })
+      .filter(Boolean)
+      .map((s, i) => ({ ...s, order: i + 1 }));
+
+  const importSpeakers = (mode) => {
+    const parsed = parseSpeakersText(importText);
+    if (!parsed.length) return;
+    const base = mode === 'append'
+      ? state.speakers.map((s, i) => ({ ...s, order: i + 1 }))
+      : [];
+    const merged = [
+      ...base,
+      ...parsed.map((s, i) => ({ ...s, order: base.length + i + 1 })),
+    ];
+    socket.emit('set_speakers', { roomId, speakers: merged });
+    setImportModalOpen(false);
+    setImportText('');
+  };
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setImportText(ev.target.result ?? '');
+    reader.readAsText(file, 'utf-8');
+    e.target.value = '';
+  };
 
   useEffect(() => {
     // When no room is selected just fetch the list and auto-redirect to first available
@@ -234,6 +277,7 @@ export default function AdminPage() {
   }
 
   return (
+    <>
     <main className="mx-auto min-h-screen max-w-6xl p-4 md:p-8">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
         <div>
@@ -317,9 +361,18 @@ export default function AdminPage() {
       </section>
 
       <section className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-        {sectionToggle('speakers', 'Discursantes', (
-          <span className="text-sm font-normal text-slate-400">({sortedSpeakers.length})</span>
-        ))}
+        <div className="flex items-center justify-between gap-2">
+          {sectionToggle('speakers', 'Discursantes', (
+            <span className="text-sm font-normal text-slate-400">({sortedSpeakers.length})</span>
+          ))}
+          <button
+            className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold hover:bg-indigo-500 transition-colors"
+            title="Importar discursantes desde texto o archivo"
+            onClick={(e) => { e.stopPropagation(); setImportModalOpen(true); }}
+          >
+            📋 Importar lista
+          </button>
+        </div>
         {open.speakers && (
           <div className="mt-4 space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
@@ -527,5 +580,75 @@ export default function AdminPage() {
         </div>
       </section>
     </main>
+
+    {/* ── Import speakers modal ─────────────────────────────────────────── */}
+    {importModalOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+        onClick={() => setImportModalOpen(false)}
+      >
+        <div
+          className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="mb-1 text-xl font-bold">Importar discursantes</h2>
+          <p className="mb-3 text-sm text-slate-400">
+            Pegá la lista o cargá un archivo <code className="rounded bg-slate-800 px-1">.txt</code>. Formato por línea:
+          </p>
+          <pre className="mb-4 rounded-lg bg-slate-800 px-3 py-2 text-xs text-slate-300 leading-relaxed">
+{`Lidia Cancela – 10 min
+Carla López – 5 min
+Christian Profeti – 25 min`}
+          </pre>
+          <textarea
+            className="w-full rounded-xl bg-slate-800 p-3 text-sm font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            rows={10}
+            placeholder={"Nombre – X min\nOtro nombre – Y min\n..."}
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+            autoFocus
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label className="cursor-pointer rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold hover:bg-slate-600 transition-colors">
+              📂 Cargar .txt
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,text/plain"
+                className="hidden"
+                onChange={handleImportFile}
+              />
+            </label>
+            <span className="flex-1" />
+            {parseSpeakersText(importText).length > 0 && (
+              <span className="text-sm text-slate-400">
+                {parseSpeakersText(importText).length} discursantes detectados
+              </span>
+            )}
+            <button
+              className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-semibold hover:bg-slate-500 transition-colors"
+              onClick={() => { setImportModalOpen(false); setImportText(''); }}
+            >
+              Cancelar
+            </button>
+            <button
+              className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-600 transition-colors disabled:opacity-40"
+              disabled={!parseSpeakersText(importText).length}
+              onClick={() => importSpeakers('append')}
+            >
+              ➕ Agregar a lista
+            </button>
+            <button
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold hover:bg-indigo-500 transition-colors disabled:opacity-40"
+              disabled={!parseSpeakersText(importText).length}
+              onClick={() => importSpeakers('replace')}
+            >
+              ✅ Reemplazar lista
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }
