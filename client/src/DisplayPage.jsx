@@ -29,17 +29,18 @@ const alertEffectClass = {
   glow:  'animate-alert-glow  bg-red-950'
 };
 
-const timerSizeClass = {
-  sm: 'text-6xl leading-none sm:text-7xl',
-  md: 'text-7xl leading-none sm:text-8xl md:text-9xl',
-  lg: 'text-8xl leading-none sm:text-9xl md:text-[12rem]',
-  xl: 'text-9xl leading-none sm:text-[10rem] md:text-[16rem]'
+// vmin = the smaller viewport dimension → scales correctly in both portrait & landscape
+const timerSizeStyle = {
+  sm: { fontSize: 'clamp(3rem, 14vmin, 7rem)',  lineHeight: 1 },
+  md: { fontSize: 'clamp(4rem, 18vmin, 10rem)', lineHeight: 1 },
+  lg: { fontSize: 'clamp(5rem, 24vmin, 14rem)', lineHeight: 1 },
+  xl: { fontSize: 'clamp(6rem, 30vmin, 18rem)', lineHeight: 1 },
 };
 
-const nameSizeClass = {
-  sm: 'text-xl leading-tight sm:text-2xl md:text-3xl',
-  md: 'text-3xl leading-tight sm:text-5xl md:text-7xl',
-  lg: 'text-5xl leading-tight sm:text-7xl md:text-9xl'
+const nameSizeStyle = {
+  sm: { fontSize: 'clamp(1rem,   6vmin, 3.5rem)', lineHeight: 1.2 },
+  md: { fontSize: 'clamp(1.5rem, 8vmin, 7rem)',   lineHeight: 1.2 },
+  lg: { fontSize: 'clamp(2rem,  10vmin, 9rem)',   lineHeight: 1.2 },
 };
 
 export default function DisplayPage() {
@@ -145,8 +146,8 @@ export default function DisplayPage() {
 
   const timeUp = state.timeRemaining === 0 && !!state.currentSpeaker;
   const timerColor = timeUp ? 'text-red-400' : colorClass;
-  const sizeClass = timerSizeClass[cfg.timerSize] ?? timerSizeClass.lg;
-  const nameSzClass = nameSizeClass[cfg.nameSize ?? 'md'];
+  const timerStyle = timerSizeStyle[cfg.timerSize] ?? timerSizeStyle.lg;
+  const nameStyle  = nameSizeStyle[cfg.nameSize  ?? 'md'];
 
   // Alternates between name and "TIEMPO FINALIZADO" when time is up
   const [showNameFlash, setShowNameFlash] = useState(true);
@@ -157,14 +158,20 @@ export default function DisplayPage() {
   }, [timeUp]);
 
   const nameEl = cfg.showName && !timeUp && (
-    <h1 className={`w-full max-w-[90vw] break-words px-2 font-black ${nameSizeClass[cfg.nameSize ?? 'md']}`}>
+    <h1
+      className="w-full max-w-[90vw] break-words px-2 font-black"
+      style={nameStyle}
+    >
       {state.currentSpeaker?.name || 'Esperando inicio'}
     </h1>
   );
 
   // When time is up: timer slot alternates between "TIEMPO FINALIZADO" and the speaker name
   const timerEl = cfg.showTimer && (
-    <div className={`w-full max-w-[90vw] break-words text-center font-black ${timeUp ? `tabular-nums ${nameSzClass}` : `tabular-nums ${sizeClass}`} ${timerColor}`}>
+    <div
+      className={`w-full max-w-[90vw] break-words text-center font-black ${timeUp ? '' : 'tabular-nums'} ${timerColor}`}
+      style={timeUp ? nameStyle : timerStyle}
+    >
       {timeUp
         ? (showNameFlash
             ? 'TIEMPO FINALIZADO'
