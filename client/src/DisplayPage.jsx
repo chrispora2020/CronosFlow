@@ -146,9 +146,7 @@ export default function DisplayPage() {
   const timeUp = state.timeRemaining === 0 && !!state.currentSpeaker;
   const timerColor = timeUp ? 'text-red-400' : colorClass;
   const sizeClass = timerSizeClass[cfg.timerSize] ?? timerSizeClass.lg;
-  // When displaying text (not digits) use vmin so the label scales down
-  // automatically in landscape without overflowing the viewport.
-  const timeUpSizeClass = 'text-[clamp(1.5rem,8vmin,10rem)] leading-tight';
+  const nameSzClass = nameSizeClass[cfg.nameSize ?? 'md'];
 
   // Alternates between name and "TIEMPO FINALIZADO" when time is up
   const [showNameFlash, setShowNameFlash] = useState(true);
@@ -166,7 +164,7 @@ export default function DisplayPage() {
 
   // When time is up: timer slot alternates between "TIEMPO FINALIZADO" and the speaker name
   const timerEl = cfg.showTimer && (
-    <div className={`w-full max-w-[90vw] break-words text-center font-black tabular-nums ${timeUp ? timeUpSizeClass : sizeClass} ${timerColor}`}>
+    <div className={`w-full max-w-[90vw] break-words text-center font-black ${timeUp ? `tabular-nums ${nameSzClass}` : `tabular-nums ${sizeClass}`} ${timerColor}`}>
       {timeUp
         ? (showNameFlash
             ? 'TIEMPO FINALIZADO'
