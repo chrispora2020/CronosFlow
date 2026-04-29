@@ -12,7 +12,8 @@ const defaultConfig = {
   nameSize: 'md',
   alertEffect: 'pulse',
   bgColor: 'black',
-  timerColorMode: 'auto'
+  timerColorMode: 'auto',
+  finishedLabel: 'Tiempo finalizado'
 };
 
 const bgColorClass = {
@@ -29,12 +30,12 @@ const alertEffectClass = {
   glow:  'animate-alert-glow  bg-red-950'
 };
 
-// vmin = the smaller viewport dimension → scales correctly in both portrait & landscape
+// vw-based clamp: escala con el ancho de la ventana, visible sin pantalla completa
 const timerSizeStyle = {
-  sm: { fontSize: 'clamp(3rem, 14vmin, 7rem)',  lineHeight: 1 },
-  md: { fontSize: 'clamp(4rem, 18vmin, 10rem)', lineHeight: 1 },
-  lg: { fontSize: 'clamp(5rem, 24vmin, 14rem)', lineHeight: 1 },
-  xl: { fontSize: 'clamp(6rem, 30vmin, 18rem)', lineHeight: 1 },
+  sm: { fontSize: 'clamp(4rem,  14vw, 12rem)', lineHeight: 1 },
+  md: { fontSize: 'clamp(5rem,  20vw, 18rem)', lineHeight: 1 },
+  lg: { fontSize: 'clamp(7rem,  28vw, 26rem)', lineHeight: 1 },
+  xl: { fontSize: 'clamp(9rem,  38vw, 36rem)', lineHeight: 1 },
 };
 
 const nameSizeStyle = {
@@ -174,8 +175,8 @@ export default function DisplayPage() {
     >
       {timeUp
         ? (showNameFlash
-            ? 'TIEMPO FINALIZADO'
-            : (cfg.showName ? state.currentSpeaker?.name : 'TIEMPO FINALIZADO'))
+            ? (cfg.finishedLabel || 'Tiempo finalizado')
+            : (cfg.showName ? state.currentSpeaker?.name : (cfg.finishedLabel || 'Tiempo finalizado')))
         : <TimerText totalSeconds={state.timeRemaining} />
       }
     </div>
