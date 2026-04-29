@@ -13,7 +13,8 @@ const defaultConfig = {
   alertEffect: 'pulse',
   bgColor: 'black',
   timerColorMode: 'auto',
-  finishedLabel: 'Tiempo finalizado'
+  finishedLabel: 'Tiempo finalizado',
+  finishedLabelSize: 'lg'
 };
 
 const bgColorClass = {
@@ -147,8 +148,9 @@ export default function DisplayPage() {
 
   const timeUp = state.timeRemaining === 0 && !!state.currentSpeaker;
   const timerColor = timeUp ? 'text-red-400' : colorClass;
-  const timerStyle = timerSizeStyle[cfg.timerSize] ?? timerSizeStyle.lg;
-  const nameStyle  = nameSizeStyle[cfg.nameSize  ?? 'md'];
+  const timerStyle          = timerSizeStyle[cfg.timerSize] ?? timerSizeStyle.lg;
+  const nameStyle           = nameSizeStyle[cfg.nameSize  ?? 'md'];
+  const finishedLabelStyle  = timerSizeStyle[cfg.finishedLabelSize ?? 'lg'] ?? timerSizeStyle.lg;
 
   // Alternates between name and "TIEMPO FINALIZADO" when time is up
   const [showNameFlash, setShowNameFlash] = useState(true);
@@ -171,7 +173,7 @@ export default function DisplayPage() {
   const timerEl = cfg.showTimer && (
     <div
       className={`w-full max-w-[90vw] break-words text-center font-black ${timeUp ? '' : 'tabular-nums'} ${timerColor}`}
-      style={timeUp ? nameStyle : timerStyle}
+      style={timeUp ? finishedLabelStyle : timerStyle}
     >
       {timeUp
         ? (showNameFlash

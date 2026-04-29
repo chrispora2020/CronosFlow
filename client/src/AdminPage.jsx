@@ -22,7 +22,8 @@ const defaultState = {
     alertEffect: 'pulse',
     bgColor: 'black',
     timerColorMode: 'auto',
-    finishedLabel: 'Tiempo finalizado'
+    finishedLabel: 'Tiempo finalizado',
+    finishedLabelSize: 'lg'
   }
 };
 
@@ -533,13 +534,22 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="sm:col-span-2">
-            <p className="mb-2 text-sm text-slate-400">Texto al finalizar el tiempo</p>
-            <input
-              className="w-full rounded-xl bg-slate-800 px-4 py-2 text-sm text-slate-200 placeholder-slate-500 outline-none ring-1 ring-slate-700 focus:ring-cyan-500"
-              placeholder="Ej: Tiempo finalizado"
-              value={cfg.finishedLabel ?? 'Tiempo finalizado'}
-              onChange={(e) => updateDisplayConfig({ finishedLabel: e.target.value })}
-            />
+            <p className="mb-2 text-sm text-slate-400">Texto y tamaño al finalizar el tiempo</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                className="min-w-0 flex-1 rounded-xl bg-slate-800 px-4 py-2 text-sm text-slate-200 placeholder-slate-500 outline-none ring-1 ring-slate-700 focus:ring-cyan-500"
+                placeholder="Ej: Tiempo finalizado"
+                value={cfg.finishedLabel ?? 'Tiempo finalizado'}
+                onChange={(e) => updateDisplayConfig({ finishedLabel: e.target.value })}
+              />
+              <div className="flex gap-1 shrink-0">
+                {['sm', 'md', 'lg', 'xl'].map((size) => (
+                  <button key={size} className={cfgBtn((cfg.finishedLabelSize ?? 'lg') === size)} onClick={() => updateDisplayConfig({ finishedLabelSize: size })}>
+                    {size.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div>
             <p className="mb-2 text-sm text-slate-400">Color del timer</p>
